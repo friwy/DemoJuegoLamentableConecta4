@@ -1,0 +1,13 @@
+{
+  "name": "Conecta 4 a 3 bandas",
+  "short_name": "Conecta4x3",
+  "description": "Conecta 4 por turnos para 3 amigos",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1a1d29",
+  "theme_color": "#1a1d29",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

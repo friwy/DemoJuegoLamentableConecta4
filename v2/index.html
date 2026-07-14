@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1d29">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<title>Conecta 4 · 2.0</title>
+<style>
+  :root {
+    --bg: #1a1d29; --panel: #242838; --board: #2e4a8f; --hole: #171a24;
+    --text: #eef0f6; --muted: #9aa1b5; --accent: #5b7fff;
+    --p0: #e5484d; --p1: #f5c518; --p2: #46a758;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px; gap: 10px; max-width: 560px; margin: 0 auto;
+  }
+  h1 { font-size: 1.1rem; font-weight: 700; text-align: center; }
+  h1 small { display: block; font-size: .72rem; color: var(--muted); font-weight: 400; margin-top: 2px; }
+  .hidden { display: none !important; }
+
+  /* ---- login ---- */
+  #login {
+    position: fixed; inset: 0; background: var(--bg); z-index: 20;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; padding: 24px;
+  }
+  #login h2 { font-size: 1.2rem; }
+  #login p { color: var(--muted); font-size: .85rem; text-align: center; }
+  .namebtn {
+    width: 100%; max-width: 300px; padding: 14px; font-size: 1rem; font-weight: 600;
+    border: 2px solid transparent; border-radius: 10px; background: var(--panel);
+    color: var(--text); cursor: pointer;
+  }
+  .namebtn.sel { border-color: var(--accent); box-shadow: 0 0 10px rgba(91,127,255,.35); }
+  #pinInput {
+    width: 100%; max-width: 300px; padding: 14px; font-size: 1.2rem; letter-spacing: .35em;
+    border-radius: 10px; border: 1px solid #3a4055; background: var(--panel);
+    color: var(--text); text-align: center;
+  }
+  #loginBtn {
+    width: 100%; max-width: 300px; padding: 15px; font-size: 1.05rem; font-weight: 700;
+    border: none; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  #loginBtn:disabled { opacity: .45; }
+  #loginMsg { color: #ffc9cc; font-size: .85rem; min-height: 1.2em; }
+
+  /* ---- lobby ---- */
+  #lobby { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+  .gamecard {
+    background: var(--panel); border-radius: 12px; padding: 12px 14px; cursor: pointer;
+    display: flex; flex-direction: column; gap: 6px; border-left: 4px solid var(--accent);
+  }
+  .gamecard.done { border-left-color: #555c72; opacity: .8; }
+  .gamecard .gname { font-weight: 700; font-size: .95rem; }
+  .gamecard .ginfo { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .gamecard .ginfo .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .gamecard .yourturn { color: #b7e6bd; font-weight: 700; }
+  #empty { color: var(--muted); text-align: center; font-size: .9rem; padding: 24px 0; }
+
+  /* ---- partida ---- */
+  #game { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+  .players { display: flex; gap: 8px; width: 100%; }
+  .player {
+    flex: 1; background: var(--panel); border-radius: 10px; padding: 7px 6px;
+    text-align: center; font-size: .8rem; border: 2px solid transparent;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  .player .dot { width: 13px; height: 13px; border-radius: 50%; flex: none; }
+  .player.turn { border-color: var(--accent); box-shadow: 0 0 10px rgba(91,127,255,.35); }
+  .player.me { text-decoration: underline; text-underline-offset: 3px; }
+  #status {
+    width: 100%; text-align: center; padding: 9px 12px; border-radius: 10px;
+    background: var(--panel); font-size: .92rem; min-height: 40px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #status.mine { background: #2d3a2e; color: #b7e6bd; font-weight: 600; }
+  #status.win { background: #3a2d2d; color: #ffd9a8; font-weight: 700; }
+  #board {
+    background: var(--board); border-radius: 14px; padding: 6px;
+    display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px;
+    width: 100%; touch-action: manipulation; box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  }
+  .cell { aspect-ratio: 1; border-radius: 50%; background: var(--hole); position: relative; transition: background .15s; }
+  .cell.c0 { background: var(--p0); } .cell.c1 { background: var(--p1); } .cell.c2 { background: var(--p2); }
+  .cell.ghost0 { background: color-mix(in srgb, var(--p0) 40%, var(--hole)); }
+  .cell.ghost1 { background: color-mix(in srgb, var(--p1) 40%, var(--hole)); }
+  .cell.ghost2 { background: color-mix(in srgb, var(--p2) 40%, var(--hole)); }
+  .cell.last::after { content: ""; position: absolute; inset: 28%; border-radius: 50%; background: rgba(255,255,255,.55); }
+  .cell.winner { animation: pulse 1s infinite alternate; }
+  @keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.7); } }
+
+  .bar { display: flex; gap: 8px; width: 100%; }
+  button.b {
+    flex: 1; padding: 12px; border: none; border-radius: 10px;
+    background: var(--panel); color: var(--text); font-size: .95rem; font-weight: 600; cursor: pointer;
+  }
+  button.b.primary { background: var(--accent); color: #fff; }
+  button.b:disabled { opacity: .45; }
+  #confirmBar { display: none; }
+  #confirmBar.show { display: flex; }
+
+  #toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: #402a2d; color: #ffc9cc; padding: 10px 16px; border-radius: 10px;
+    font-size: .88rem; opacity: 0; transition: opacity .25s; pointer-events: none;
+    max-width: 90%; text-align: center; z-index: 30;
+  }
+  #toast.show { opacity: 1; }
+  .foot { font-size: .72rem; color: var(--muted); text-align: center; }
+  .foot a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="hidden">
+  <h2>🔐 Identifícate</h2>
+  <p>Elige tu nombre y escribe tu PIN personal.<br>Se guardará en este móvil.</p>
+  <div id="nameBtns" style="display:flex;flex-direction:column;gap:8px;width:100%;align-items:center;"></div>
+  <input id="pinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="PIN">
+  <button id="loginBtn">Entrar</button>
+  <div id="loginMsg"></div>
+</div>
+
+<h1>Conecta 4 · arquitectura 2.0<small id="subtitle"></small></h1>
+
+<!-- LOBBY -->
+<div id="lobby" class="hidden">
+  <div class="bar">
+    <button class="b" id="btnLobbyRefresh">↻ Actualizar</button>
+    <button class="b primary" id="btnNueva">＋ Nueva partida</button>
+  </div>
+  <div id="gamelist"></div>
+  <div class="foot"><span id="who"></span> · <a href="#" id="logout">cambiar jugador</a></div>
+</div>
+
+<!-- PARTIDA -->
+<div id="game" class="hidden">
+  <div class="bar">
+    <button class="b" id="btnBack">← Lobby</button>
+    <button class="b" id="btnGameRefresh">↻ Actualizar</button>
+  </div>
+  <div class="players" id="players"></div>
+  <div id="status"></div>
+  <div id="board"></div>
+  <div class="bar" id="confirmBar">
+    <button class="b" id="btnCancel">Cancelar</button>
+    <button class="b primary" id="btnConfirm">Confirmar jugada</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ====== Configuracion (horneada desde config2.json) ======
+var CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycbx0IH4bJMIze-o6YkM0AsEu9xoDsyOi4-CWqJA94c125VmZ781I4XuFiOxy03mhobIO/exec',
+  GAME_NAME: 'Conecta4 de los lamentables 2.0',
+  PLAYERS: ['Dani', 'Bares', 'Mora']
+};
+
+var COLS = 9, ROWS = 7;
+var creds = { jugador: localStorage.getItem('c4v2_who') || null, pin: localStorage.getItem('c4v2_pin') || null };
+var state = null;         // partida abierta actualmente
+var currentId = null;     // id de la partida abierta
+var pendingCol = null;
+var busy = false;
+var pollTimer = null;
+var selName = null;
+
+var $ = function (id) { return document.getElementById(id); };
+
+function toast(msg) {
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(function () { t.classList.remove('show'); }, 3500);
+}
+
+function api(action, extra) {
+  var req = extra || {};
+  req.action = action;
+  req.jugador = creds.jugador;
+  req.pin = creds.pin;
+  return fetch(CONFIG.API_URL, { method: 'POST', body: JSON.stringify(req) })
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (res && res.error && res.error.indexOf('PIN incorrecto') !== -1) {
+        logout('PIN incorrecto. Vuelve a identificarte.');
+      }
+      return res;
+    });
+}
+
+// ====== Vistas ======
+function show(view) {
+  ['login', 'lobby', 'game'].forEach(function (v) { $(v).classList.add('hidden'); });
+  $(view).classList.remove('hidden');
+}
+
+// ====== Login ======
+function renderLogin(msg) {
+  var box = $('nameBtns');
+  box.innerHTML = '';
+  CONFIG.PLAYERS.forEach(function (p, i) {
+    var b = document.createElement('button');
+    b.className = 'namebtn' + (selName === p ? ' sel' : '');
+    b.innerHTML = '<span style="color:var(--p' + i + ')">●</span> ' + p;
+    b.onclick = function () { selName = p; renderLogin(); $('pinInput').focus(); };
+    box.appendChild(b);
+  });
+  $('loginMsg').textContent = msg || '';
+  show('login');
+}
+
+function doLogin() {
+  var pin = $('pinInput').value.trim();
+  if (!selName) { $('loginMsg').textContent = 'Elige tu nombre.'; return; }
+  if (!pin) { $('loginMsg').textContent = 'Escribe tu PIN.'; return; }
+  $('loginBtn').disabled = true;
+  creds = { jugador: selName, pin: pin };
+  api('login').then(function (res) {
+    $('loginBtn').disabled = false;
+    if (!res.ok) {
+      creds = { jugador: null, pin: null };
+      $('loginMsg').textContent = res.error || 'No se pudo entrar.';
+      return;
+    }
+    localStorage.setItem('c4v2_who', creds.jugador);
+    localStorage.setItem('c4v2_pin', creds.pin);
+    $('pinInput').value = '';
+    enterLobby();
+  }).catch(function () {
+    $('loginBtn').disabled = false;
+    creds = { jugador: null, pin: null };
+    $('loginMsg').textContent = 'Sin conexión con el servidor.';
+  });
+}
+
+function logout(msg) {
+  creds = { jugador: null, pin: null };
+  localStorage.removeItem('c4v2_who');
+  localStorage.removeItem('c4v2_pin');
+  stopPolling();
+  renderLogin(msg || '');
+}
+
+// ====== Lobby ======
+function enterLobby() {
+  currentId = null; state = null;
+  stopPolling();
+  $('who').textContent = 'Juegas como ' + creds.jugador;
+  $('subtitle').textContent = CONFIG.GAME_NAME;
+  show('lobby');
+  loadLobby();
+}
+
+function loadLobby(silent) {
+  return api('partidas').then(function (res) {
+    if (!res.ok) { if (!silent) toast(res.error || 'Error cargando partidas.'); return; }
+    var list = $('gamelist');
+    list.innerHTML = '';
+    if (!res.partidas.length) {
+      list.innerHTML = '<div id="empty">No hay partidas todavía.<br>Crea la primera con «＋ Nueva partida».</div>';
+      return;
+    }
+    res.partidas.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'gamecard' + (p.estado !== 'ABIERTA' ? ' done' : '');
+      var info;
+      if (p.winner_nombre) info = '🏆 Ganó ' + p.winner_nombre;
+      else if (p.draw) info = 'Empate';
+      else if (p.turno_nombre === creds.jugador) info = '<span class="yourturn">✅ ¡Te toca!</span>';
+      else info = 'Le toca a ' + p.turno_nombre;
+      var dots = p.players.map(function (_, i) { return '<span class="dot" style="background:var(--p' + i + ')"></span>'; }).join('');
+      d.innerHTML = '<div class="gname">' + p.nombre + '</div><div class="ginfo">' + dots + ' · ' + info + ' · ' + p.moves + ' jugadas</div>';
+      d.onclick = function () { openGame(p.id); };
+      list.appendChild(d);
+    });
+  }).catch(function () { if (!silent) toast('Sin conexión con el servidor. Reintenta.'); });
+}
+
+function nuevaPartida() {
+  if (busy) return;
+  busy = true;
+  api('nueva').then(function (res) {
+    busy = false;
+    if (!res.ok) { toast(res.error); return; }
+    state = res.state;
+    currentId = state.id;
+    enterGame();
+  }).catch(function () { busy = false; toast('No se pudo crear la partida.'); });
+}
+
+// ====== Partida ======
+function openGame(id) {
+  currentId = id;
+  api('partida', { id: id }).then(function (res) {
+    if (!res.ok) { toast(res.error); return; }
+    state = res.state;
+    enterGame();
+  }).catch(function () { toast('Sin conexión con el servidor.'); });
+}
+
+function enterGame() {
+  pendingCol = null;
+  show('game');
+  render();
+  startPolling();
+}
+
+function refreshGame(silent) {
+  if (!currentId) return Promise.resolve();
+  return api('partida', { id: currentId }).then(function (res) {
+    if (!res.ok) { if (!silent) toast(res.error); return; }
+    var changed = !state || state.seq !== res.state.seq;
+    state = res.state;
+    if (changed) {
+      if (state.players.indexOf(creds.jugador) !== state.turn) pendingCol = null;
+      render();
+    }
+  }).catch(function () { if (!silent) toast('Sin conexión con el servidor. Reintenta.'); });
+}
+
+function dropRowC(board, col) {
+  for (var r = ROWS - 1; r >= 0; r--) if (board[r][col] === -1) return r;
+  return -1;
+}
+
+function render() {
+  if (!state) return;
+  var myIdx = state.players.indexOf(creds.jugador);
+
+  var ph = $('players');
+  ph.innerHTML = '';
+  state.players.forEach(function (p, i) {
+    var d = document.createElement('div');
+    d.className = 'player' + (state.winner === null && !state.draw && state.turn === i ? ' turn' : '') + (i === myIdx ? ' me' : '');
+    d.innerHTML = '<span class="dot" style="background:var(--p' + i + ')"></span><span>' + p + '</span>';
+    ph.appendChild(d);
+  });
+
+  var st = $('status');
+  st.className = '';
+  if (state.winner !== null) {
+    st.classList.add('win');
+    st.textContent = state.winner === myIdx ? '🏆 ¡Has ganado ' + state.name + '!' : '🏆 Ha ganado ' + state.players[state.winner];
+  } else if (state.draw) {
+    st.classList.add('win');
+    st.textContent = 'Empate: tablero lleno.';
+  } else if (state.turn === myIdx) {
+    st.classList.add('mine');
+    st.textContent = '✅ ¡Te toca! Toca una columna.';
+  } else {
+    st.textContent = state.name + ' · le toca a ' + state.players[state.turn] + '…';
+  }
+
+  var bd = $('board');
+  bd.innerHTML = '';
+  var winSet = {};
+  (state.winCells || []).forEach(function (rc) { winSet[rc[0] + ',' + rc[1]] = true; });
+  var ghostRow = pendingCol !== null ? dropRowC(state.board, pendingCol) : -1;
+
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var cell = document.createElement('div');
+      var v = state.board[r][c];
+      cell.className = 'cell' + (v !== -1 ? ' c' + v : '');
+      if (winSet[r + ',' + c]) cell.className += ' winner';
+      if (state.lastMove && state.lastMove.row === r && state.lastMove.col === c) cell.className += ' last';
+      if (pendingCol === c && ghostRow === r && myIdx !== -1) cell.className += ' ghost' + myIdx;
+      cell.dataset.col = c;
+      bd.appendChild(cell);
+    }
+  }
+
+  $('confirmBar').className = 'bar' + (pendingCol !== null ? ' show' : '');
+}
+
+function selectCol(c) {
+  if (!state || busy) return;
+  var myIdx = state.players.indexOf(creds.jugador);
+  if (state.winner !== null || state.draw) { toast('La partida ha terminado.'); return; }
+  if (myIdx !== state.turn) { toast('No es tu turno: le toca a ' + state.players[state.turn] + '.'); return; }
+  if (dropRowC(state.board, c) === -1) { toast('Esa columna está llena.'); return; }
+  pendingCol = (pendingCol === c) ? null : c;
+  render();
+}
+
+function confirmMove() {
+  if (pendingCol === null || busy) return;
+  busy = true;
+  $('btnConfirm').disabled = true;
+  api('mover', { id: currentId, col: pendingCol }).then(function (res) {
+    busy = false;
+    $('btnConfirm').disabled = false;
+    pendingCol = null;
+    if (res.state) state = res.state;
+    if (!res.ok) toast(res.error);
+    render();
+  }).catch(function () {
+    busy = false;
+    $('btnConfirm').disabled = false;
+    toast('No se pudo enviar la jugada. Comprueba tu conexión.');
+    refreshGame(true);
+  });
+}
+
+// ====== Polling ======
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(function () {
+    if (document.visibilityState !== 'visible' || busy || !creds.pin) return;
+    if (!$('game').classList.contains('hidden')) refreshGame(true);
+    else if (!$('lobby').classList.contains('hidden')) loadLobby(true);
+  }, 12000);
+}
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+// ====== Eventos ======
+$('board').addEventListener('click', function (ev) {
+  var t = ev.target.closest('.cell');
+  if (t) selectCol(parseInt(t.dataset.col, 10));
+});
+$('btnConfirm').onclick = confirmMove;
+$('btnCancel').onclick = function () { pendingCol = null; render(); };
+$('btnBack').onclick = function () { enterLobby(); startPolling(); };
+$('btnGameRefresh').onclick = function () { refreshGame(); };
+$('btnLobbyRefresh').onclick = function () { loadLobby(); };
+$('btnNueva').onclick = nuevaPartida;
+$('logout').onclick = function (e) { e.preventDefault(); logout(); };
+$('loginBtn').onclick = doLogin;
+$('pinInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState !== 'visible' || !creds.pin) return;
+  if (!$('game').classList.contains('hidden')) refreshGame(true);
+  else if (!$('lobby').classList.contains('hidden')) loadLobby(true);
+});
+
+// ====== Arranque ======
+if (CONFIG.API_URL.indexOf('__') === 0) {
+  renderLogin('⚠️ Falta configurar la URL del Apps Script.');
+} else if (creds.jugador && creds.pin) {
+  enterLobby();
+  startPolling();
+} else {
+  renderLogin();
+}
+</script>
+</body>
+</html>
